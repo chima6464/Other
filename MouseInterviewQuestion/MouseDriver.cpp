@@ -2,10 +2,10 @@
 #include<stdint.h>
 #include<stdbool.h>
 #include<stdlib.h>
-#include<string.h>
 #include "MouseDriver.h"
 #include <iostream>
-using namespace std;
+#include<string.h>
+using namespace std; 
 
 MouseDriver::MouseDriver(/* args */)
 {
