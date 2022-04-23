@@ -134,7 +134,7 @@ uint16_t Protocol::checksum(uint8_t * buffer, uint16_t length)
     
 }
 
-int Protocol::sendInfo()
+int Protocol::sendInfo(int hSocket)
 {
   uint8_t txBuf[MAX_SEND_LEN] = {0};
   m_length = sizeof(SoftwareCommandDroneInfo_t);
@@ -147,7 +147,7 @@ int Protocol::sendInfo()
   pthread_mutex_lock(&wifiDataMutex);
   size_t const headerAndPayloadAndCrcLength__bytes = sizeof(SoftwareCommandDroneInfo_t) + m_length;
   txBuf[headerAndPayloadAndCrcLength__bytes] = checksum(txBuf, headerAndPayloadAndCrcLength__bytes);
-  rc = send(connfd, txBuf, headerAndPayloadAndCrcLength__bytes, 0);
+  rc = send(hSocket, txBuf, headerAndPayloadAndCrcLength__bytes, 0);
   pthread_mutex_unlock(&wifiDataMutex); //un lock
   return rc;
 
@@ -183,7 +183,7 @@ int main(int argc, char *argv[])  {
     //fgets(sendToServer, 100, stdin);
 
     //Send data to the server
-    pProtocol->sendInfo();
+    pProtocol->sendInfo(hSocket);
     int read_size = pProtocol->socketRecieve(hSocket, server_reply, 200);
     printf("Server Response : %s: read_size %d\n\n",server_reply, read_size);
     close(hSocket);

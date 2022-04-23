@@ -55,7 +55,7 @@ public:
     int socketConnect(int hSocket);
     int socketSend(int hSocket, char * buffer, short lenRqst);
     int socketRecieve(int hSocket,char* Rsp,short RvcSize);
-    int sendInfo();
+    int sendInfo(int hSocket);
     uint16_t checksum(uint8_t * buffer, uint16_t length);
 };
 
