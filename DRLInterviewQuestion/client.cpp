@@ -9,11 +9,15 @@
 #include <netinet/in.h>
 #include <arpa/inet.h> 
 #include <unistd.h> 
-#include <time.h>
+#include <inttypes.h>
+#include "sys/time.h"
 
 //char serverAddress[] = "challenge.drl.io";
 #define PORT  8162
+#define MAX_SEND_LEN 64
 using namespace std;
+static int sockfd = -1, connfd = 0;
+static pthread_mutex_t wifiDataMutex = PTHREAD_MUTEX_INITIALIZER; // used for txbuf and socket
 
 Protocol::Protocol(): m_magic(0xf00d),m_length(0),m_message_type(0),m_timestamp(0),
 m_counter(0), m_payload_cs(0), m_header_cs(0), m_payload(0)
@@ -43,17 +47,18 @@ uint8_t Protocol::messageType(uint8_t * buffer)
   return m_message_type;
 }
 
-uint64_t Protocol::timestamp(uint8_t * buffer)
+uint64_t Protocol::timestamp(void)
 {
-    m_timestamp = *(buffer+3);
-    uint32_t counter = 0;
-  
-    counter  =  ((m_timestamp & 0xC0) >> 6);
+  struct timeval currTime;
+  time_t T = time(NULL);
+  struct tm tm = *localtime(&T);
+  uint16_t time_ms = 0;
+  uint64_t total_time_ms;
 
-    if (counter >= 0x3FFFF || counter < m_timestamp){m_timestamp+=counter;}
-    else {m_timestamp = counter;}
-
-    return m_timestamp;
+  gettimeofday(&currTime, NULL);
+  time_ms = currTime.tv_usec / 1000;
+  total_time_ms = tm.tm_hour * 3600 * 1000 + tm.tm_min * 60 * 1000 + tm.tm_sec * 1000 + time_ms;
+  return total_time_ms;  
 }
 
 uint8_t Protocol::counterFromClient(void)
@@ -129,6 +134,25 @@ uint16_t Protocol::checksum(uint8_t * buffer, uint16_t length)
     
 }
 
+int Protocol::sendInfo()
+{
+  uint8_t txBuf[MAX_SEND_LEN] = {0};
+  m_length = sizeof(SoftwareCommandDroneInfo_t);
+  int rc = 0;
+  SoftwareCommandDroneInfo_t * const responsePacket = (SoftwareCommandDroneInfo_t *)txBuf;
+  responsePacket->s_message_type = eClientRequest;
+  responsePacket->s_timestamp = timestamp();
+  responsePacket->s_counter++;
+
+  pthread_mutex_lock(&wifiDataMutex);
+  size_t const headerAndPayloadAndCrcLength__bytes = sizeof(SoftwareCommandDroneInfo_t) + m_length;
+  txBuf[headerAndPayloadAndCrcLength__bytes] = checksum(txBuf, headerAndPayloadAndCrcLength__bytes);
+  rc = send(connfd, txBuf, headerAndPayloadAndCrcLength__bytes, 0);
+  pthread_mutex_unlock(&wifiDataMutex); //un lock
+  return rc;
+
+}
+
 int main(int argc, char *argv[])  {
     int hSocket = 0;
 
@@ -155,11 +179,11 @@ int main(int argc, char *argv[])  {
     }
 
     printf("Sucessfully conected with server\n");
-    printf("Enter the Message: ");
-    fgets(sendToServer, 100, stdin);
+    //printf("Enter the Message: ");
+    //fgets(sendToServer, 100, stdin);
 
     //Send data to the server
-    pProtocol->socketSend(hSocket, sendToServer, strlen(sendToServer));
+    pProtocol->sendInfo();
     int read_size = pProtocol->socketRecieve(hSocket, server_reply, 200);
     printf("Server Response : %s: read_size %d\n\n",server_reply, read_size);
     close(hSocket);
