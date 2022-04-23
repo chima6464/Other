@@ -14,7 +14,7 @@ typedef struct __attribute__((packed)){
     uint8_t s_counter;
     uint16_t s_payload_cs;
     uint16_t s_header_cs;
-    char s_payload[64];
+    char s_payload[64] = "[Henry Okoro]";
 
 }SoftwareCommandDroneInfo_t;
 
